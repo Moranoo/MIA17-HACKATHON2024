@@ -1,4 +1,4 @@
-name: CI
+name: Tagging and Conflict Check
 
 on:
   push:
@@ -6,28 +6,55 @@ on:
       - main
 
 jobs:
-  create_tag:
+  tag-and-check:
     runs-on: ubuntu-latest
 
-    permissions:
-      contents: write
-      workflows: write  
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
+    - name: Checkout repository
+      uses: actions/checkout@v2
 
-      - name: Get current version
-        id: get_version
-        run: |
-          VERSION=$(date +'%Y.%m.%d.%H.%M.%S')
-          echo "version=$VERSION" >> $GITHUB_ENV
+    - name: Set up Git
+      run: |
+        git config --global user.name "${{ github.actor }}"
+        git config --global user.email "${{ github.actor }}@users.noreply.github.com"
 
-      - name: Create Git tag
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          git config --global user.name 'github-actions'
-          git config --global user.email 'github-actions@github.com'
-          git tag ${{ env.version }}
-          git push origin ${{ env.version }}
+    - name: Ensure clean working directory
+      run: |
+        if [[ $(git status --porcelain) ]]; then
+          echo "Working directory is not clean. Aborting."
+          exit 1
+        fi
+
+    - name: Create Tag
+      id: tag_version
+      run: |
+        # Get the current tag
+        CURRENT_TAG=$(git describe --tags `git rev-list --tags --max-count=1`)
+        echo "Current Tag: $CURRENT_TAG"
+        
+        # Extract the version number from the current tag
+        if [[ "$CURRENT_TAG" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+          MAJOR=${BASH_REMATCH[1]}
+          MINOR=${BASH_REMATCH[2]}
+          PATCH=${BASH_REMATCH[3]}
+        else
+          MAJOR=0
+          MINOR=0
+          PATCH=0
+        fi
+
+        # Increment the patch version
+        PATCH=$((PATCH + 1))
+
+        # Create new tag
+        NEW_TAG="v$MAJOR.$MINOR.$PATCH-${{ github.actor }}"
+        echo "New Tag: $NEW_TAG"
+
+        # Create a new tag
+        git tag $NEW_TAG
+        echo "::set-output name=new_tag::$NEW_TAG"
+
+    - name: Push Tag
+      run: |
+        NEW_TAG=${{ steps.tag_version.outputs.new_tag }}
+        git push origin $NEW_TAG
