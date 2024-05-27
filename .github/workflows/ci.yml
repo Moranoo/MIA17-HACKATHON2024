@@ -9,19 +9,25 @@ jobs:
   create_tag:
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: write
+      workflows: write  
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
 
       - name: Get current version
         id: get_version
-        run: echo ::set-output name=version::$(date +'%Y.%m.%d.%H.%M.%S')
+        run: |
+          VERSION=$(date +'%Y.%m.%d.%H.%M.%S')
+          echo "version=$VERSION" >> $GITHUB_ENV
 
       - name: Create Git tag
         env:
-          GITHUB_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config --global user.name 'github-actions'
           git config --global user.email 'github-actions@github.com'
-          git tag ${{ steps.get_version.outputs.version }}
-          git push origin ${{ steps.get_version.outputs.version }}
+          git tag ${{ env.version }}
+          git push origin ${{ env.version }}
