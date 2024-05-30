@@ -7,19 +7,38 @@ function App() {
   const [country, setCountry] = useState('');
   const [team, setTeam] = useState('');
   const [year, setYear] = useState('');
+  const [discipline, setDiscipline] = useState('');
+  const [event, setEvent] = useState('');
+  const [gameSlug, setGameSlug] = useState('');
+  const [participantType, setParticipantType] = useState('');
+  const [valueUnitCategory, setValueUnitCategory] = useState('');
+  const [valueType, setValueType] = useState('');
   const [medalsByCountry, setMedalsByCountry] = useState([]);
   const [medalsByTeamYear, setMedalsByTeamYear] = useState([]);
   const [topTeams, setTopTeams] = useState([]);
   const [countries, setCountries] = useState([]);
   const [teams, setTeams] = useState([]);
   const [years, setYears] = useState([]);
+  const [disciplines, setDisciplines] = useState([]);
+  const [events, setEvents] = useState([]);
+  const [gameSlugs, setGameSlugs] = useState([]);
+  const [participantTypes, setParticipantTypes] = useState([]);
+  const [valueUnitCategories, setValueUnitCategories] = useState([]);
+  const [valueTypes, setValueTypes] = useState([]);
   const [teamYearMessage, setTeamYearMessage] = useState('');
+  const [prediction, setPrediction] = useState('');
 
   useEffect(() => {
     fetchTopTeams();
     fetchCountries();
     fetchTeams();
     fetchYears();
+    fetchDisciplines();
+    fetchEvents();
+    fetchGameSlugs();
+    fetchParticipantTypes();
+    fetchValueUnitCategories();
+    fetchValueTypes();
   }, []);
 
   const handleCountryChange = (e) => {
@@ -32,6 +51,30 @@ function App() {
 
   const handleYearChange = (e) => {
     setYear(e.target.value);
+  };
+
+  const handleDisciplineChange = (e) => {
+    setDiscipline(e.target.value);
+  };
+
+  const handleEventChange = (e) => {
+    setEvent(e.target.value);
+  };
+
+  const handleGameSlugChange = (e) => {
+    setGameSlug(e.target.value);
+  };
+
+  const handleParticipantTypeChange = (e) => {
+    setParticipantType(e.target.value);
+  };
+
+  const handleValueUnitCategoryChange = (e) => {
+    setValueUnitCategory(e.target.value);
+  };
+
+  const handleValueTypeChange = (e) => {
+    setValueType(e.target.value);
   };
 
   const fetchCountries = async () => {
@@ -58,6 +101,69 @@ function App() {
       setYears(response.data);
     } catch (error) {
       console.error("There was an error fetching the years:", error);
+    }
+  };
+
+  const fetchDisciplines = async () => {
+    try {
+      const response = await axios.get('http://localhost:5000/disciplines');
+      setDisciplines(response.data);
+    } catch (error) {
+      console.error("There was an error fetching the disciplines:", error);
+    }
+  };
+
+  const fetchEvents = async () => {
+    try {
+      const response = await axios.get('http://localhost:5000/events');
+      setEvents(response.data);
+    } catch (error) {
+      console.error("There was an error fetching the events:", error);
+    }
+  };
+
+  const fetchGameSlugs = async () => {
+    try {
+      const response = await axios.get('http://localhost:5000/game_slugs');
+      setGameSlugs(response.data);
+    } catch (error) {
+      console.error("There was an error fetching the game slugs:", error);
+    }
+  };
+
+  const fetchParticipantTypes = async () => {
+    try {
+      const response = await axios.get('http://localhost:5000/participant_types');
+      setParticipantTypes(response.data);
+    } catch (error) {
+      console.error("There was an error fetching the participant types:", error);
+    }
+  };
+
+  const fetchValueUnitCategories = async () => {
+    try {
+      const response = await axios.get('http://localhost:5000/value_unit_categories');
+      setValueUnitCategories(response.data);
+    } catch (error) {
+      console.error("There was an error fetching the value unit categories:", error);
+    }
+  };
+
+  const fetchValueTypes = async () => {
+    try {
+      const response = await axios.get('http://localhost:5000/value_types');
+      setValueTypes(response.data);
+    } catch (error) {
+      console.error("There was an error fetching the value types:", error);
+    }
+  };
+
+  const fetchTopTeams = async () => {
+    try {
+      const response = await axios.get('http://localhost:5000/top_teams');
+      setTopTeams(response.data);
+    } catch (error) {
+      console.error("There was an error fetching the top teams:", error);
     }
   };
 
@@ -89,12 +195,25 @@ function App() {
     }
   };
 
-  const fetchTopTeams = async () => {
+  const fetchPrediction = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/top_teams');
-      setTopTeams(response.data);
+      const response = await axios.post('http://localhost:5000/predict', {
+        features: [
+          {
+            game_year: parseInt(year),
+            discipline_title: discipline,
+            event_title: event,
+            game_slug: gameSlug,
+            participant_type: participantType,
+            country_name: team,
+            value_unit_category: valueUnitCategory,
+            value_type: valueType
+          }
+        ]
+      });
+      setPrediction(response.data.prediction[0]);
     } catch (error) {
-      console.error("There was an error fetching the top teams:", error);
+      console.error("There was an error fetching the prediction:", error);
     }
   };
 
@@ -106,8 +225,15 @@ function App() {
   const resetTeamYearSearch = () => {
     setTeam('');
     setYear('');
+    setDiscipline('');
+    setEvent('');
+    setGameSlug('');
+    setParticipantType('');
+    setValueUnitCategory('');
+    setValueType('');
     setMedalsByTeamYear([]);
     setTeamYearMessage('');
+    setPrediction('');
   };
 
   const topTeamsData = {
@@ -204,6 +330,45 @@ function App() {
                 </table>
               </div>
             )}
+            <h2>Make a Prediction</h2>
+            <select value={discipline} onChange={handleDisciplineChange}>
+              <option value="">Select a discipline</option>
+              {disciplines.map((discipline, index) => (
+                <option key={index} value={discipline}>{discipline}</option>
+              ))}
+            </select>
+            <select value={event} onChange={handleEventChange}>
+              <option value="">Select an event</option>
+              {events.map((event, index) => (
+                <option key={index} value={event}>{event}</option>
+              ))}
+            </select>
+            <select value={gameSlug} onChange={handleGameSlugChange}>
+              <option value="">Select a game slug</option>
+              {gameSlugs.map((gameSlug, index) => (
+                <option key={index} value={gameSlug}>{gameSlug}</option>
+              ))}
+            </select>
+            <select value={participantType} onChange={handleParticipantTypeChange}>
+              <option value="">Select a participant type</option>
+              {participantTypes.map((participantType, index) => (
+                <option key={index} value={participantType}>{participantType}</option>
+              ))}
+            </select>
+            <select value={valueUnitCategory} onChange={handleValueUnitCategoryChange}>
+              <option value="">Select a value unit category</option>
+              {valueUnitCategories.map((valueUnitCategory, index) => (
+                <option key={index} value={valueUnitCategory}>{valueUnitCategory}</option>
+              ))}
+            </select>
+            <select value={valueType} onChange={handleValueTypeChange}>
+              <option value="">Select a value type</option>
+              {valueTypes.map((valueType, index) => (
+                <option key={index} value={valueType}>{valueType}</option>
+              ))}
+            </select>
+            <button onClick={fetchPrediction}>Predict</button>
+            {prediction && <p>Prediction: {prediction}</p>}
           </div>
         </div>
         <div className="top-teams-container">

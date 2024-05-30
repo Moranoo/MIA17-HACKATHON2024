@@ -32,8 +32,11 @@ results_df = pd.read_sql("SELECT * FROM olympic_results;", con=engine)
 cleaned_olympic_data_df = pd.read_sql("SELECT * FROM cleaned_olympic_data;", con=engine)
 cleaned_olympic_results_df = pd.read_sql("SELECT * FROM cleaned_olympic_results1;", con=engine)
 
+# Afficher les colonnes disponibles
+print(results_df.columns)
+
 # Charger le modèle sauvegardé
-model_filename = 'olympic_model.pkl'
+model_filename = 'model.joblib'
 model = joblib.load(model_filename)
 
 @app.route('/predict', methods=['POST'])
@@ -79,13 +82,49 @@ def get_countries():
 
 @app.route('/teams')
 def get_teams():
-    teams = cleaned_olympic_data_df['country_name'].unique().tolist()
+    teams = cleaned_olympic_results_df['country_name'].unique().tolist()
     return jsonify(teams)
 
 @app.route('/years')
 def get_years():
-    years = cleaned_olympic_data_df['game_year'].unique().tolist()
+    years = cleaned_olympic_results_df['slug_game'].str.extract(r'(\d{4})')[0].dropna().unique().tolist()
     return jsonify(sorted(years))
+
+@app.route('/disciplines')
+def get_disciplines():
+    disciplines = cleaned_olympic_results_df['discipline_title'].dropna().unique().tolist()
+    return jsonify(disciplines)
+
+@app.route('/events')
+def get_events():
+    events = cleaned_olympic_results_df['event_title'].dropna().unique().tolist()
+    return jsonify(events)
+
+@app.route('/game_slugs')
+def get_game_slugs():
+    game_slugs = cleaned_olympic_results_df['slug_game'].dropna().unique().tolist()
+    return jsonify(game_slugs)
+
+@app.route('/participant_types')
+def get_participant_types():
+    participant_types = cleaned_olympic_results_df['participant_type'].dropna().unique().tolist()
+    return jsonify(participant_types)
+
+@app.route('/value_unit_categories')
+def get_value_unit_categories():
+    if 'value_unit_category' in cleaned_olympic_results_df.columns:
+        value_unit_categories = cleaned_olympic_results_df['value_unit_category'].dropna().unique().tolist()
+        return jsonify(value_unit_categories)
+    else:
+        return jsonify([])  # Return an empty list if the column does not exist
+
+@app.route('/value_types')
+def get_value_types():
+    if 'value_type' in cleaned_olympic_results_df.columns:
+        value_types = cleaned_olympic_results_df['value_type'].dropna().unique().tolist()
+        return jsonify(value_types)
+    else:
+        return jsonify([])  # Return an empty list if the column does not exist
 
 if __name__ == '__main__':
     app.run(debug=True)
