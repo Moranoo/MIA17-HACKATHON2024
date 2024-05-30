@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Bar } from 'react-chartjs-2';
-import 'chart.js/auto';
-import Prediction from './Prediction';  // Importez le composant de prédiction
-import './App.css'; // Importez le fichier CSS
+import './App.css';
 
 function App() {
   const [country, setCountry] = useState('');
@@ -13,10 +11,15 @@ function App() {
   const [medalsByTeamYear, setMedalsByTeamYear] = useState([]);
   const [topTeams, setTopTeams] = useState([]);
   const [countries, setCountries] = useState([]);
+  const [teams, setTeams] = useState([]);
+  const [years, setYears] = useState([]);
+  const [teamYearMessage, setTeamYearMessage] = useState('');
 
   useEffect(() => {
     fetchTopTeams();
     fetchCountries();
+    fetchTeams();
+    fetchYears();
   }, []);
 
   const handleCountryChange = (e) => {
@@ -40,12 +43,29 @@ function App() {
     }
   };
 
+  const fetchTeams = async () => {
+    try {
+      const response = await axios.get('http://localhost:5000/teams');
+      setTeams(response.data);
+    } catch (error) {
+      console.error("There was an error fetching the teams:", error);
+    }
+  };
+
+  const fetchYears = async () => {
+    try {
+      const response = await axios.get('http://localhost:5000/years');
+      setYears(response.data);
+    } catch (error) {
+      console.error("There was an error fetching the years:", error);
+    }
+  };
+
   const fetchMedalsByCountry = async () => {
     try {
       const response = await axios.get('http://localhost:5000/medals_by_country', {
         params: { country }
       });
-      console.log('Medals by country:', response.data);
       setMedalsByCountry(response.data);
     } catch (error) {
       console.error("There was an error fetching the medals by country:", error);
@@ -57,8 +77,13 @@ function App() {
       const response = await axios.get('http://localhost:5000/medals_by_team_year', {
         params: { team, year }
       });
-      console.log('Medals by team and year:', response.data);
-      setMedalsByTeamYear(response.data);
+      if (response.data.length === 0) {
+        setTeamYearMessage('Dommage, l\'équipe n\'était pas qualifiée');
+        setMedalsByTeamYear([]);
+      } else {
+        setMedalsByTeamYear(response.data);
+        setTeamYearMessage('');
+      }
     } catch (error) {
       console.error("There was an error fetching the medals by team and year:", error);
     }
@@ -67,11 +92,22 @@ function App() {
   const fetchTopTeams = async () => {
     try {
       const response = await axios.get('http://localhost:5000/top_teams');
-      console.log('Top teams data received:', response.data);
       setTopTeams(response.data);
     } catch (error) {
       console.error("There was an error fetching the top teams:", error);
     }
+  };
+
+  const resetCountrySearch = () => {
+    setCountry('');
+    setMedalsByCountry([]);
+  };
+
+  const resetTeamYearSearch = () => {
+    setTeam('');
+    setYear('');
+    setMedalsByTeamYear([]);
+    setTeamYearMessage('');
   };
 
   const topTeamsData = {
@@ -87,13 +123,10 @@ function App() {
     ]
   };
 
-  console.log('Top teams data for chart:', topTeamsData);
-
   return (
     <div className="App">
       <header className="App-header">
         <h1>Olympic Medals Dashboard</h1>
-
         <div className="search-container">
           <div className="search-by-country">
             <h2>Search Medals by Country</h2>
@@ -104,6 +137,7 @@ function App() {
               ))}
             </select>
             <button onClick={fetchMedalsByCountry}>Search</button>
+            <button onClick={resetCountrySearch}>Reset</button>
             {medalsByCountry.length > 0 && (
               <div className="medals-container">
                 <table>
@@ -129,12 +163,23 @@ function App() {
               </div>
             )}
           </div>
-
           <div className="search-by-team">
             <h2>Search Medals by Team and Year</h2>
-            <input type="text" value={team} onChange={handleTeamChange} placeholder="Team name" />
-            <input type="text" value={year} onChange={handleYearChange} placeholder="Year" />
+            <select value={team} onChange={handleTeamChange}>
+              <option value="">Select a team</option>
+              {teams.map((team, index) => (
+                <option key={index} value={team}>{team}</option>
+              ))}
+            </select>
+            <select value={year} onChange={handleYearChange}>
+              <option value="">Select a year</option>
+              {years.map((year, index) => (
+                <option key={index} value={year}>{year}</option>
+              ))}
+            </select>
             <button onClick={fetchMedalsByTeamYear}>Search</button>
+            <button onClick={resetTeamYearSearch}>Reset</button>
+            {teamYearMessage && <p>{teamYearMessage}</p>}
             {medalsByTeamYear.length > 0 && (
               <div className="medals-container">
                 <table>
@@ -161,14 +206,11 @@ function App() {
             )}
           </div>
         </div>
-
         <div className="top-teams-container">
           <h2>Top 10 Teams with Most Medals</h2>
           <Bar data={topTeamsData} />
         </div>
       </header>
-
-      <Prediction />  {/* Ajoutez le composant de prédiction */}
     </div>
   );
 }

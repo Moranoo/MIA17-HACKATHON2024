@@ -52,7 +52,7 @@ def medals_by_country():
     country_medals = medals_df[medals_df['country_name'] == country]
     medals_by_year = country_medals.groupby(['slug_game', 'medal_type']).size().unstack(fill_value=0)
     medals_by_year.reset_index(inplace=True)
-    return medals_by_year.to_json(orient='records')
+    return jsonify(medals_by_year.to_dict(orient='records'))
 
 @app.route('/medals_by_team_year', methods=['GET'])
 def medals_by_team_year():
@@ -64,18 +64,28 @@ def medals_by_team_year():
     team_medals = medals_df[(medals_df['participant_title'] == team) & (medals_df['slug_game'].str.contains(year))]
     medals_by_event = team_medals.groupby(['event_title', 'medal_type']).size().unstack(fill_value=0)
     medals_by_event.reset_index(inplace=True)
-    return medals_by_event.to_json(orient='records')
+    return jsonify(medals_by_event.to_dict(orient='records'))
 
 @app.route('/top_teams', methods=['GET'])
 def top_teams():
     medals_count = medals_df.groupby('participant_title').size().reset_index(name='total_medals')
     top_teams = medals_count.nlargest(10, 'total_medals')
-    return top_teams.to_json(orient='records')
+    return jsonify(top_teams.to_dict(orient='records'))
 
 @app.route('/countries')
 def get_countries():
     countries = medals_df['country_name'].unique().tolist()
     return jsonify(countries)
+
+@app.route('/teams')
+def get_teams():
+    teams = cleaned_olympic_data_df['country_name'].unique().tolist()
+    return jsonify(teams)
+
+@app.route('/years')
+def get_years():
+    years = cleaned_olympic_data_df['game_year'].unique().tolist()
+    return jsonify(sorted(years))
 
 if __name__ == '__main__':
     app.run(debug=True)
