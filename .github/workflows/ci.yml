@@ -31,7 +31,7 @@ jobs:
         # Get the current tag
         CURRENT_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
         echo "Current Tag: $CURRENT_TAG"
-        
+
         # Extract the version number from the current tag
         if [[ "$CURRENT_TAG" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
           MAJOR=${BASH_REMATCH[1]}
@@ -42,14 +42,17 @@ jobs:
           MINOR=0
           PATCH=0
         fi
-        
+
         # Increment the patch version
         PATCH=$((PATCH + 1))
-        
-        # Create new tag
-        NEW_TAG="v$MAJOR.$MINOR.$PATCH-${{ github.actor }}"
+
+        # Get the short commit hash
+        COMMIT_HASH=$(git rev-parse --short HEAD)
+
+        # Create new tag with commit hash
+        NEW_TAG="v$MAJOR.$MINOR.$PATCH-${{ github.actor }}-$COMMIT_HASH"
         echo "New Tag: $NEW_TAG"
-        
+
         # Create a new tag
         git tag $NEW_TAG
         echo "::set-output name=new_tag::$NEW_TAG"
