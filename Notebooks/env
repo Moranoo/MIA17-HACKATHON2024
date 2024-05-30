@@ -1,0 +1,5 @@
+DB_USER=mia17-hackaton
+DB_PASSWORD=hackaton-mia17
+DB_HOST=postgresql-mia17-hackaton.alwaysdata.net
+DB_PORT=5432
+DB_NAME=mia17-hackaton_psql
