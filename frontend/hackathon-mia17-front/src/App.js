@@ -27,6 +27,7 @@ function App() {
   const [valueTypes, setValueTypes] = useState([]);
   const [teamYearMessage, setTeamYearMessage] = useState('');
   const [prediction, setPrediction] = useState('');
+  const [predictionModel, setPredictionModel] = useState('random_forest'); // Nouveau state pour choisir le modèle
 
   useEffect(() => {
     fetchTopTeams();
@@ -75,6 +76,10 @@ function App() {
 
   const handleValueTypeChange = (e) => {
     setValueType(e.target.value);
+  };
+
+  const handlePredictionModelChange = (e) => {
+    setPredictionModel(e.target.value);
   };
 
   const fetchCountries = async () => {
@@ -197,20 +202,31 @@ function App() {
 
   const fetchPrediction = async () => {
     try {
-      const response = await axios.post('http://localhost:5000/predict', {
-        features: [
-          {
-            game_year: parseInt(year),
-            discipline_title: discipline,
-            event_title: event,
-            game_slug: gameSlug,
-            participant_type: participantType,
-            country_name: team,
-            value_unit_category: valueUnitCategory,
-            value_type: valueType
-          }
-        ]
-      });
+      if (
+        !year || !discipline || !event || !gameSlug || !participantType || !team ||
+        !valueUnitCategory || !valueType
+      ) {
+        alert('Please fill all the fields before making a prediction');
+        return;
+      }
+      
+      const features = [
+        {
+          game_year: parseInt(year),
+          discipline_title: discipline,
+          event_title: event,
+          game_slug: gameSlug,
+          participant_type: participantType,
+          country_name: team,
+          value_unit_category: valueUnitCategory,
+          value_type: valueType
+        }
+      ];
+
+      const response = predictionModel === 'random_forest'
+        ? await axios.post('http://localhost:5000/predict', { features })
+        : await axios.post('http://localhost:5000/predict_keras', { features });
+      
       setPrediction(response.data.prediction[0]);
     } catch (error) {
       console.error("There was an error fetching the prediction:", error);
@@ -366,6 +382,10 @@ function App() {
               {valueTypes.map((valueType, index) => (
                 <option key={index} value={valueType}>{valueType}</option>
               ))}
+            </select>
+            <select value={predictionModel} onChange={handlePredictionModelChange}>
+              <option value="random_forest">Random Forest</option>
+              <option value="keras">Keras/TensorFlow</option>
             </select>
             <button onClick={fetchPrediction}>Predict</button>
             {prediction && <p>Prediction: {prediction}</p>}
