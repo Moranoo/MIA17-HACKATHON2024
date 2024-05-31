@@ -1,60 +1,60 @@
-name: Tagging and Conflict Check
+# name: Tagging and Conflict Check
 
-on:
-  push:
-    branches:
-      - main
+# on:
+#   push:
+#     branches:
+#       - main
 
-jobs:
-  tag-and-check:
-    runs-on: ubuntu-latest
+# jobs:
+#   tag-and-check:
+#     runs-on: ubuntu-latest
 
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v2
+#     steps:
+#     - name: Checkout repository
+#       uses: actions/checkout@v2
 
-    - name: Set up Git
-      run: |
-        git config --global user.name "${{ github.actor }}"
-        git config --global user.email "${{ github.actor }}@users.noreply.github.com"
+#     - name: Set up Git
+#       run: |
+#         git config --global user.name "${{ github.actor }}"
+#         git config --global user.email "${{ github.actor }}@users.noreply.github.com"
 
-    - name: Ensure clean working directory
-      run: |
-        if [[ $(git status --porcelain) ]]; then
-          echo "Working directory is not clean. Aborting."
-          exit 1
-        fi
+#     - name: Ensure clean working directory
+#       run: |
+#         if [[ $(git status --porcelain) ]]; then
+#           echo "Working directory is not clean. Aborting."
+#           exit 1
+#         fi
 
-    - name: Create Tag
-      id: tag_version
-      run: |
-        # Get the current tag
-        CURRENT_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-        echo "Current Tag: $CURRENT_TAG"
+#     - name: Create Tag
+#       id: tag_version
+#       run: |
+#         # Get the current tag
+#         CURRENT_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+#         echo "Current Tag: $CURRENT_TAG"
         
-        # Extract the version number from the current tag
-        if [[ "$CURRENT_TAG" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
-          MAJOR=${BASH_REMATCH[1]}
-          MINOR=${BASH_REMATCH[2]}
-          PATCH=${BASH_REMATCH[3]}
-        else
-          MAJOR=0
-          MINOR=0
-          PATCH=0
-        fi
+#         # Extract the version number from the current tag
+#         if [[ "$CURRENT_TAG" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+#           MAJOR=${BASH_REMATCH[1]}
+#           MINOR=${BASH_REMATCH[2]}
+#           PATCH=${BASH_REMATCH[3]}
+#         else
+#           MAJOR=0
+#           MINOR=0
+#           PATCH=0
+#         fi
         
-        # Increment the patch version
-        PATCH=$((PATCH + 1))
+#         # Increment the patch version
+#         PATCH=$((PATCH + 1))
         
-        # Create new tag
-        NEW_TAG="v$MAJOR.$MINOR.$PATCH-${{ github.actor }}"
-        echo "New Tag: $NEW_TAG"
+#         # Create new tag
+#         NEW_TAG="v$MAJOR.$MINOR.$PATCH-${{ github.actor }}"
+#         echo "New Tag: $NEW_TAG"
         
-        # Create a new tag
-        git tag $NEW_TAG
-        echo "::set-output name=new_tag::$NEW_TAG"
+#         # Create a new tag
+#         git tag $NEW_TAG
+#         echo "::set-output name=new_tag::$NEW_TAG"
 
-    - name: Push Tag
-      run: |
-        NEW_TAG=${{ steps.tag_version.outputs.new_tag }}
-        git push origin $NEW_TAG
+#     - name: Push Tag
+#       run: |
+#         NEW_TAG=${{ steps.tag_version.outputs.new_tag }}
+#         git push origin $NEW_TAG
