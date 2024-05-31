@@ -1,91 +1,95 @@
 from flask import Flask, request, jsonify
-import joblib
-import pandas as pd
-from sqlalchemy import create_engine
 from flask_cors import CORS
-from dotenv import load_dotenv
+from sqlalchemy import create_engine
+import pandas as pd
 import os
+from dotenv import load_dotenv
+import joblib
+
+load_dotenv()
+
+DB_USER = os.getenv("DB_USER")
+DB_PASSWORD = os.getenv("DB_PASSWORD")
+DB_HOST = os.getenv("DB_HOST")
+DB_PORT = os.getenv("DB_PORT")
+DB_NAME = os.getenv("DB_NAME")
 
 app = Flask(__name__)
 CORS(app)
 
-# Charger les variables d'environnement depuis le fichier .env
-load_dotenv()
-
-# Informations de connexion à la base de données depuis les variables d'environnement
-username = os.getenv('DB_USERNAME')
-password = os.getenv('DB_PASSWORD')
-host = os.getenv('DB_HOST')
-port = os.getenv('DB_PORT')
-database = os.getenv('DB_DATABASE')
-
-connection_url = f'postgresql://{username}:{password}@{host}:{port}/{database}'
-
-# Créer une connexion à la base de données
+connection_url = f'postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}'
 engine = create_engine(connection_url)
 
-# Charger les données à partir de la base de données
-athletes_df = pd.read_sql("SELECT * FROM olympic_athletes;", con=engine)
-hosts_df = pd.read_sql("SELECT * FROM olympic_hosts;", con=engine)
-medals_df = pd.read_sql("SELECT * FROM olympic_medals;", con=engine)
-results_df = pd.read_sql("SELECT * FROM olympic_results;", con=engine)
-cleaned_olympic_data_df = pd.read_sql("SELECT * FROM cleaned_olympic_data;", con=engine)
-cleaned_olympic_results_df = pd.read_sql("SELECT * FROM cleaned_olympic_results1;", con=engine)
-
-# Charger le modèle sauvegardé
-model_filename = 'olympic_model.pkl'
-model = joblib.load(model_filename)
-
-@app.route('/predict', methods=['POST'])
-def predict():
-    data = request.get_json(force=True)
-    features = pd.DataFrame(data['features'])
-    prediction = model.predict(features)
-    return jsonify({'prediction': prediction.tolist()})
+# Charger le modèle de prédiction
+model = joblib.load('random_forest_model.pkl')
 
 @app.route('/medals_by_country', methods=['GET'])
 def medals_by_country():
     country = request.args.get('country')
-    if not country:
-        return jsonify({'error': 'Country parameter is required'}), 400
+    query = f"SELECT * FROM cleaned_olympic_data WHERE country_name = '{country}'"
+    data = pd.read_sql(query, con=engine)
+    return data.to_json(orient='records')
 
-    country_medals = medals_df[medals_df['country_name'] == country]
-    medals_by_year = country_medals.groupby(['slug_game', 'medal_type']).size().unstack(fill_value=0)
-    medals_by_year.reset_index(inplace=True)
-    return jsonify(medals_by_year.to_dict(orient='records'))
-
-@app.route('/medals_by_team_year', methods=['GET'])
-def medals_by_team_year():
+@app.route('/medals_by_team_and_year', methods=['GET'])
+def medals_by_team_and_year():
     team = request.args.get('team')
     year = request.args.get('year')
-    if not team or not year:
-        return jsonify({'error': 'Team and Year parameters are required'}), 400
+    query = f"SELECT * FROM cleaned_olympic_results1 WHERE discipline_title = '{team}' AND game_year = {year}"
+    data = pd.read_sql(query, con=engine)
+    return data.to_json(orient='records')
 
-    team_medals = medals_df[(medals_df['participant_title'] == team) & (medals_df['slug_game'].str.contains(year))]
-    medals_by_event = team_medals.groupby(['event_title', 'medal_type']).size().unstack(fill_value=0)
-    medals_by_event.reset_index(inplace=True)
-    return jsonify(medals_by_event.to_dict(orient='records'))
+@app.route('/prediction_2024', methods=['GET'])
+def prediction_2024():
+    data_df = pd.read_sql("SELECT * FROM cleaned_olympic_data;", con=engine)
+    result1_df = pd.read_sql("SELECT * FROM cleaned_olympic_results1;", con=engine)
+    merged_data = pd.merge(data_df, result1_df, on=['country_name', 'game_year'], how='left')
+    
+    data_2024 = merged_data[merged_data['game_year'] == 2016].copy()
+    data_2024['game_year'] = 2024
+    
+    features_2024 = data_2024[['country_name', 'game_year', 'total_disciplines', 'total_events']]
+    features_2024_encoded = pd.get_dummies(features_2024, columns=['country_name'])
+    features_train_encoded = pd.get_dummies(merged_data[merged_data['game_year'] <= 2016][['country_name', 'game_year', 'total_disciplines', 'total_events']], columns=['country_name'])
+    features_2024_encoded = features_2024_encoded.reindex(columns=features_train_encoded.columns, fill_value=0)
 
-@app.route('/top_teams', methods=['GET'])
-def top_teams():
-    medals_count = medals_df.groupby('participant_title').size().reset_index(name='total_medals')
-    top_teams = medals_count.nlargest(10, 'total_medals')
-    return jsonify(top_teams.to_dict(orient='records'))
+    y_pred_2024 = model.predict(features_2024_encoded)
+    prediction_2024 = pd.DataFrame({'country_name': data_2024['country_name'], 'predicted_medals': y_pred_2024})
+    
+    return prediction_2024.to_json(orient='records')
 
-@app.route('/countries')
+@app.route('/predict', methods=['GET'])
+def predict():
+    country = request.args.get('country')
+    year = int(request.args.get('year'))
+    total_disciplines = int(request.args.get('total_disciplines'))
+    total_events = int(request.args.get('total_events'))
+    
+    features = pd.DataFrame({
+        'country_name': [country],
+        'game_year': [year],
+        'total_disciplines': [total_disciplines],
+        'total_events': [total_events]
+    })
+    
+    features_encoded = pd.get_dummies(features, columns=['country_name'])
+    features_train_encoded = pd.get_dummies(pd.read_sql("SELECT * FROM cleaned_olympic_data WHERE game_year <= 2016", con=engine)[['country_name', 'game_year', 'total_disciplines', 'total_events']], columns=['country_name'])
+    features_encoded = features_encoded.reindex(columns=features_train_encoded.columns, fill_value=0)
+    
+    predicted_medals = model.predict(features_encoded)
+    
+    return jsonify({'predicted_medals': predicted_medals[0]})
+
+@app.route('/countries', methods=['GET'])
 def get_countries():
-    countries = medals_df['country_name'].unique().tolist()
-    return jsonify(countries)
+    query = "SELECT DISTINCT country_name FROM cleaned_olympic_data"
+    data = pd.read_sql(query, con=engine)
+    return jsonify(data['country_name'].tolist())
 
-@app.route('/teams')
+@app.route('/teams', methods=['GET'])
 def get_teams():
-    teams = cleaned_olympic_data_df['country_name'].unique().tolist()
-    return jsonify(teams)
-
-@app.route('/years')
-def get_years():
-    years = cleaned_olympic_data_df['game_year'].unique().tolist()
-    return jsonify(sorted(years))
+    query = "SELECT DISTINCT discipline_title FROM cleaned_olympic_results1"
+    data = pd.read_sql(query, con=engine)
+    return jsonify(data['discipline_title'].tolist())
 
 if __name__ == '__main__':
     app.run(debug=True)

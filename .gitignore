@@ -1,3 +1,5 @@
+/Notebooks/.env
+/Notebooks/my_dir/
 .env
 node_modules/
 olympiic_model/
